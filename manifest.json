@@ -1,0 +1,10 @@
+{
+	"id": "ankiObsidianToAnki",
+	"name": "Anki BiSync",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Bidirectional sync between Obsidian markdown files and Anki flashcards via AnkiConnect.",
+	"author": "yoffens",
+	"authorUrl": "",
+	"isDesktopOnly": true
+}

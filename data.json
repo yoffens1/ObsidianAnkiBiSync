@@ -1,0 +1,19 @@
+{
+  "ankiConnectUrl": "http://127.0.0.1:8765",
+  "ankiConnectApiKey": "",
+  "syncFolders": [
+    "Anki test"
+  ],
+  "excludeFolders": [
+    "templates",
+    ".obsidian",
+    "_Templates"
+  ],
+  "syncOnSave": false,
+  "autoSyncInterval": 0,
+  "biSyncEnabled": true,
+  "deleteOrSuspend": "suspend",
+  "defaultDeck": "Obsidian",
+  "noteModelName": "ObsidianBiSync",
+  "syncTagsFromAnki": false
+}

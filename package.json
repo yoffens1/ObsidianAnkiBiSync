@@ -1,0 +1,25 @@
+{
+	"name": "anki-bisync",
+	"version": "1.0.0",
+	"description": "Bidirectional sync between Obsidian markdown files and Anki flashcards via AnkiConnect.",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"typecheck": "tsc --noEmit --skipLibCheck"
+	},
+	"keywords": ["obsidian", "anki", "flashcards", "sync"],
+	"author": "yoffens",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"builtin-modules": "^4.0.0",
+		"esbuild": "^0.21.5",
+		"tslib": "2.4.0",
+		"typescript": "^5.4.5"
+	},
+	"dependencies": {
+		"obsidian": "latest"
+	}
+}
