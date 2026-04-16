@@ -10,7 +10,6 @@ import { App, TFile } from 'obsidian';
 export interface FrontmatterUpdates {
 	cards?: number;
 	lastAnkiSynced?: string;
-	next_review?: string | null;
 	[key: string]: unknown;
 }
 

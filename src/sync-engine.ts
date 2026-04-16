@@ -273,9 +273,13 @@ export class SyncEngine {
 
 		// Update frontmatter: cards count + lastAnkiSynced
 		try {
+			const d = new Date();
+			const pad = (n: number) => n.toString().padStart(2, '0');
+			const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+			
 			await updateFrontmatter(this.app, file, {
 				cards: parsed.cards.length,
-				lastAnkiSynced: new Date().toISOString().split('T')[0] ?? '',
+				lastAnkiSynced: dateStr,
 			});
 		} catch (err) {
 			result.errors.push(
@@ -529,9 +533,6 @@ export class SyncEngine {
 			cardByID.set(card.cardID, card);
 		}
 
-		// Track earliest next review date across all cards
-		let earliestReview: Date | null = null;
-
 		// Read current file content once
 		let content: string;
 		try {
@@ -550,20 +551,6 @@ export class SyncEngine {
 			// Get scheduling data from first associated card
 			const firstCardId = noteInfo.cards[0];
 			const cardInfo = firstCardId !== undefined ? cardsInfoMap.get(firstCardId) : undefined;
-
-			// Calculate next review date
-			let nextReviewDate: Date | null = null;
-			if (cardInfo) {
-				nextReviewDate = calculateNextReviewDate(
-					cardInfo.due,
-					cardInfo.type,
-					cardInfo.interval,
-					cardInfo.mod
-				);
-				if (earliestReview === null || nextReviewDate < earliestReview) {
-					earliestReview = nextReviewDate;
-				}
-			}
 
 			const ankiFront = noteInfo.fields['Front']?.value ?? '';
 			const ankiBack = noteInfo.fields['Back']?.value ?? '';
@@ -590,20 +577,6 @@ export class SyncEngine {
 						contentModified = true;
 					}
 				}
-			} else {
-				// Obsidian wins — but still update scheduling metadata
-				if (cardInfo && nextReviewDate) {
-					const result = updateContentSection(
-						content,
-						localCard,
-						null, // no heading change
-						null  // no body change
-					);
-					if (result !== null) {
-						content = result;
-						contentModified = true;
-					}
-				}
 			}
 		}
 
@@ -616,15 +589,17 @@ export class SyncEngine {
 			}
 		}
 
-		// Update frontmatter next_review with earliest date
-		if (earliestReview) {
-			try {
-				await updateFrontmatter(this.app, file, {
-					next_review: formatDate(earliestReview),
-				});
-			} catch {
-				// Non-critical
-			}
+		// Update frontmatter sync time
+		const d = new Date();
+		const pad = (n: number) => n.toString().padStart(2, '0');
+		const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		
+		try {
+			await updateFrontmatter(this.app, file, {
+				lastAnkiSynced: dateStr,
+			});
+		} catch {
+			// Non-critical
 		}
 	}
 
