@@ -8,12 +8,14 @@ import { Notice, Plugin, TFile } from 'obsidian';
 import { AnkiConnect } from './anki-connect';
 import { AnkiBiSyncSettingTab, AnkiBiSyncSettings, DEFAULT_SETTINGS } from './settings';
 import { SyncEngine, createSyncNotice } from './sync-engine';
+import { ImportEngine } from './import-engine';
 import { debounce } from './utils';
 
 export default class AnkiBiSyncPlugin extends Plugin {
 	settings!: AnkiBiSyncSettings;
 	anki!: AnkiConnect;
 	private syncEngine!: SyncEngine;
+	private importEngine!: ImportEngine;
 
 	// Persistent references for cleanup
 	private autoSyncIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -30,6 +32,7 @@ export default class AnkiBiSyncPlugin extends Plugin {
 			this.settings.ankiConnectApiKey
 		);
 		this.syncEngine = new SyncEngine(this.app, this.anki, this.settings);
+		this.importEngine = new ImportEngine(this.app, this.anki, this.settings);
 
 		// Debounced save handler
 		this.debouncedSyncOnSave = debounce(
@@ -101,6 +104,7 @@ export default class AnkiBiSyncPlugin extends Plugin {
 			this.settings.ankiConnectApiKey
 		);
 		this.syncEngine = new SyncEngine(this.app, this.anki, this.settings);
+		this.importEngine = new ImportEngine(this.app, this.anki, this.settings);
 	}
 
 	/** Called when syncOnSave toggle changes — no-op since handler checks setting at call time. */
@@ -282,5 +286,16 @@ export default class AnkiBiSyncPlugin extends Plugin {
 				10000
 			);
 		}
+	}
+
+	/** Trigger import flow from UI */
+	async initiateAnkiImport(): Promise<void> {
+		const reachable = await this.anki.isReachable();
+		if (!reachable) {
+			new Notice('⚠ AnkiConnect not reachable. Is Anki running?', 10000);
+			return;
+		}
+		
+		await this.importEngine.initiateImport();
 	}
 }

@@ -389,15 +389,15 @@ export class SyncEngine {
 					const card = noteIdToCard.get(noteInfo.noteId);
 					if (!card) continue;
 
-					const diff = compareNoteFields(noteInfo, card, parsed, file.path, this.settings);
-					if (diff.frontChanged || diff.backChanged || diff.tagsChanged) {
+					const diff = compareNoteFields(noteInfo, card, parsed, file.path, vaultName, this.settings);
+					if (diff.frontChanged || diff.backChanged || diff.tagsChanged || diff.sourceChanged) {
 						try {
 							await this.anki.updateNote({
 								id: noteInfo.noteId,
 								fields: {
 									Front: diff.newFront,
 									Back: diff.newBack,
-									Source: `${vaultName}::${file.path}`,
+									Source: diff.newSource,
 									ObsidianPath: file.path,
 									CardID: card.cardID,
 								},

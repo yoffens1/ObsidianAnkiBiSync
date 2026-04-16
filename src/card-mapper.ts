@@ -11,9 +11,11 @@ export interface FieldDiff {
 	frontChanged: boolean;
 	backChanged: boolean;
 	tagsChanged: boolean;
+	sourceChanged: boolean;
 	newFront: string;
 	newBack: string;
 	newTags: string[];
+	newSource: string;
 }
 
 /**
@@ -34,7 +36,7 @@ export function buildAnkiNote(
 	settings: AnkiBiSyncSettings
 ): AddNoteParams {
 	const tags = buildTags(parsed.tags, filePath, card.heading, settings);
-	const source = `${vaultName}::${filePath}`;
+	const source = buildSourceField(parsed, vaultName, filePath);
 
 	return {
 		deckName: parsed.deckName,
@@ -57,6 +59,27 @@ export function buildAnkiNote(
 			},
 		},
 	};
+}
+
+/**
+ * Construct the unified Source field containing path, aliases, and sources metadata.
+ */
+export function buildSourceField(parsed: ParsedFile, vaultName: string, filePath: string): string {
+	let sourceData = '';
+	if (parsed.frontmatter) {
+		const sourcesRaw = parsed.frontmatter['sources'];
+		const aliasesRaw = parsed.frontmatter['aliases'];
+		
+		if (sourcesRaw) {
+			const sourceStr = Array.isArray(sourcesRaw) ? sourcesRaw.join(', ') : String(sourcesRaw);
+			if (sourceStr && sourceStr !== '[]') sourceData += `<br><b>Sources:</b> ${sourceStr}`;
+		}
+		if (aliasesRaw) {
+			const aliasStr = Array.isArray(aliasesRaw) ? aliasesRaw.join(', ') : String(aliasesRaw);
+			if (aliasStr && aliasStr !== '[]') sourceData += `<br><b>Aliases:</b> ${aliasStr}`;
+		}
+	}
+	return sourceData ? `${vaultName}::${filePath}${sourceData}` : `${vaultName}::${filePath}`;
 }
 
 /**
@@ -113,14 +136,17 @@ export function compareNoteFields(
 	card: ParsedCard,
 	parsed: ParsedFile,
 	filePath: string,
+	vaultName: string,
 	settings: AnkiBiSyncSettings
 ): FieldDiff {
 	const ankiFront = ankiNote.fields['Front']?.value ?? '';
 	const ankiBack = ankiNote.fields['Back']?.value ?? '';
 	const ankiTags = new Set(ankiNote.tags);
+	const ankiSource = ankiNote.fields['Source']?.value ?? '';
 
 	const newTags = buildTags(parsed.tags, filePath, card.heading, settings);
 	const newTagSet = new Set(newTags);
+	const newSource = buildSourceField(parsed, vaultName, filePath);
 
 	const tagsChanged =
 		newTags.some((t) => !ankiTags.has(t)) ||
@@ -130,9 +156,11 @@ export function compareNoteFields(
 		frontChanged: ankiFront.trim() !== card.heading.trim(),
 		backChanged: ankiBack.trim() !== card.body.trim(),
 		tagsChanged,
+		sourceChanged: ankiSource.trim() !== newSource.trim(),
 		newFront: card.heading,
 		newBack: card.body,
 		newTags,
+		newSource,
 	};
 }
 

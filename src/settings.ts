@@ -36,6 +36,9 @@ export interface AnkiBiSyncSettings {
 	tagFromFile: boolean;
 	tagFromFolder: boolean;
 	tagFromMeta: boolean;
+
+	// Import Options
+	importDeckDepth: number;
 }
 
 export const DEFAULT_SETTINGS: AnkiBiSyncSettings = {
@@ -56,6 +59,7 @@ export const DEFAULT_SETTINGS: AnkiBiSyncSettings = {
 	tagFromFile: false,
 	tagFromFolder: true,
 	tagFromMeta: true,
+	importDeckDepth: 1,
 };
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
@@ -448,6 +452,31 @@ export class AnkiBiSyncSettingTab extends PluginSettingTab {
 						btn.setDisabled(true);
 						await this.plugin.runPullFromAnki();
 						btn.setDisabled(false);
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Import deck from Anki')
+			.setDesc('Download an existing deck from Anki and convert it into Obsidian Markdown files.')
+			.addButton((btn) =>
+				btn
+					.setButtonText('Import Deck…')
+					.onClick(async () => {
+						await this.plugin.initiateAnkiImport();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Import dropdown hierarchy depth')
+			.setDesc('How many levels of subdecks to show in the Import dropdown (0 = show ALL subdecks).')
+			.addSlider((slider) =>
+				slider
+					.setLimits(0, 5, 1)
+					.setValue(this.plugin.settings.importDeckDepth)
+					.setDynamicTooltip()
+					.onChange(async (value) => {
+						this.plugin.settings.importDeckDepth = value;
+						await this.plugin.saveSettings();
 					})
 			);
 
