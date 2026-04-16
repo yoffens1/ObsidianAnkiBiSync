@@ -2,7 +2,8 @@
   "ankiConnectUrl": "http://127.0.0.1:8765",
   "ankiConnectApiKey": "",
   "syncFolders": [
-    "Anki test"
+    "Anki test",
+    "ANKI TEST"
   ],
   "excludeFolders": [
     "templates",
@@ -21,5 +22,6 @@
   "tagFromHeading": false,
   "tagFromFile": false,
   "tagFromFolder": true,
-  "tagFromMeta": true
+  "tagFromMeta": true,
+  "importDeckDepth": 1
 }
