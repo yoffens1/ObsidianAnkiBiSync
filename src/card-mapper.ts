@@ -5,6 +5,7 @@
 import { AddNoteParams, NoteInfo } from './anki-connect';
 import { ParsedCard, ParsedFile } from './parser';
 import { sanitizeFilenameTag } from './utils';
+import { AnkiBiSyncSettings } from './settings';
 
 export interface FieldDiff {
 	frontChanged: boolean;
@@ -29,13 +30,10 @@ export function buildAnkiNote(
 	parsed: ParsedFile,
 	vaultName: string,
 	filePath: string,
-	modelName: string
+	modelName: string,
+	settings: AnkiBiSyncSettings
 ): AddNoteParams {
-	const filenameTag = sanitizeFilenameTag(
-		filePath.split('/').pop()?.replace(/\.md$/, '') ?? filePath
-	);
-
-	const tags = buildTags(parsed.tags, filenameTag);
+	const tags = buildTags(parsed.tags, filePath, card.heading, settings);
 	const source = `${vaultName}::${filePath}`;
 
 	return {
@@ -50,7 +48,7 @@ export function buildAnkiNote(
 		},
 		tags,
 		options: {
-			allowDuplicate: false,
+			allowDuplicate: true,
 			duplicateScope: 'deck',
 			duplicateScopeOptions: {
 				deckName: parsed.deckName,
@@ -63,14 +61,46 @@ export function buildAnkiNote(
 
 /**
  * Build the tag array for an Anki card.
- * Combines frontmatter tags + auto-generated filename tag.
+ * Combines tags from various sources based on user settings.
  */
-export function buildTags(frontmatterTags: string[], filenameTag: string): string[] {
+export function buildTags(
+	frontmatterTags: string[], 
+	filePath: string, 
+	heading: string,
+	settings: AnkiBiSyncSettings
+): string[] {
 	const allTags = new Set<string>();
-	for (const tag of frontmatterTags) {
-		if (tag.trim()) allTags.add(tag.trim());
+
+	if (settings.tagFromMeta) {
+		for (const tag of frontmatterTags) {
+			if (tag.trim()) allTags.add(tag.trim());
+		}
 	}
-	if (filenameTag) allTags.add(filenameTag);
+	
+	if (settings.tagFromFolder) {
+		const dirStr = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+		if (dirStr && dirStr !== '/') {
+			const folderParts = dirStr.split('/');
+			for (const fp of folderParts) {
+				const sanitized = sanitizeFilenameTag(fp);
+				if (sanitized) allTags.add(sanitized);
+			}
+		}
+	}
+
+	if (settings.tagFromFile) {
+		const fileName = filePath.split('/').pop()?.replace(/\.md$/, '');
+		if (fileName) {
+			const sanitized = sanitizeFilenameTag(fileName);
+			if (sanitized) allTags.add(sanitized);
+		}
+	}
+	
+	if (settings.tagFromHeading) {
+		const sanitized = sanitizeFilenameTag(heading);
+		if (sanitized) allTags.add(sanitized);
+	}
+	
 	return Array.from(allTags);
 }
 
@@ -82,13 +112,14 @@ export function compareNoteFields(
 	ankiNote: NoteInfo,
 	card: ParsedCard,
 	parsed: ParsedFile,
-	filenameTag: string
+	filePath: string,
+	settings: AnkiBiSyncSettings
 ): FieldDiff {
 	const ankiFront = ankiNote.fields['Front']?.value ?? '';
 	const ankiBack = ankiNote.fields['Back']?.value ?? '';
 	const ankiTags = new Set(ankiNote.tags);
 
-	const newTags = buildTags(parsed.tags, filenameTag);
+	const newTags = buildTags(parsed.tags, filePath, card.heading, settings);
 	const newTagSet = new Set(newTags);
 
 	const tagsChanged =
@@ -131,11 +162,3 @@ export function resolveConflict(
 	return 'obsidian';
 }
 
-/**
- * Extract the filename tag from an Anki note's tags list.
- * Used when looking for cards belonging to a specific file.
- */
-export function getFilenameTag(filePath: string): string {
-	const name = filePath.split('/').pop()?.replace(/\.md$/, '') ?? filePath;
-	return sanitizeFilenameTag(name);
-}

@@ -9,7 +9,7 @@ export function slugify(text: string): string {
 	return text
 		.toLowerCase()
 		.trim()
-		.replace(/\s+/g, '-')
+		.replace(/[\/\s]+/g, '-')
 		.replace(/[^a-zA-Z0-9-]/g, '');
 }
 
@@ -27,7 +27,7 @@ export function generateCardID(filenameWithoutExt: string, heading: string): str
  */
 export function sanitizeFilenameTag(filenameWithoutExt: string): string {
 	return filenameWithoutExt
-		.replace(/\s+/g, '_')
+		.replace(/[\/\s]+/g, '_')
 		.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 

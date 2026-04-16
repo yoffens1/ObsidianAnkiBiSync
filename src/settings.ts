@@ -24,12 +24,18 @@ export interface AnkiBiSyncSettings {
 
 	// Deck
 	defaultDeck: string;
+	deckAddSuffixes: boolean;
+	deckUppercaseFolders: boolean;
 
 	// Note model
 	noteModelName: string;
 
 	// Tags
 	syncTagsFromAnki: boolean;
+	tagFromHeading: boolean;
+	tagFromFile: boolean;
+	tagFromFolder: boolean;
+	tagFromMeta: boolean;
 }
 
 export const DEFAULT_SETTINGS: AnkiBiSyncSettings = {
@@ -42,8 +48,14 @@ export const DEFAULT_SETTINGS: AnkiBiSyncSettings = {
 	biSyncEnabled: true,
 	deleteOrSuspend: 'suspend',
 	defaultDeck: 'Obsidian',
+	deckAddSuffixes: true,
+	deckUppercaseFolders: false,
 	noteModelName: 'ObsidianBiSync',
 	syncTagsFromAnki: false,
+	tagFromHeading: false,
+	tagFromFile: false,
+	tagFromFolder: true,
+	tagFromMeta: true,
 };
 
 // ─── Settings Tab ─────────────────────────────────────────────────────────────
@@ -288,6 +300,62 @@ export class AnkiBiSyncSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// ── Tag Generation ─────────────────────────────────────────────────────
+
+		containerEl.createEl('h3', { text: 'Tag Generation Settings' });
+		containerEl.createEl('p', {
+			text: 'Choose which information should be automatically converted to Anki tags when syncing notes.',
+			cls: 'setting-item-description',
+		});
+
+		new Setting(containerEl)
+			.setName('Tags based on frontmatter meta info')
+			.setDesc('Create Anki tags from the tags defined in the Obsidian YAML block (`--- tags: ---`).')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.tagFromMeta)
+					.onChange(async (value) => {
+						this.plugin.settings.tagFromMeta = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Tags based on folder name')
+			.setDesc('Create Anki tags from the folders the file resides in.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.tagFromFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.tagFromFolder = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Tags based on MD file name')
+			.setDesc('Create an Anki tag for the Markdown file name itself.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.tagFromFile)
+					.onChange(async (value) => {
+						this.plugin.settings.tagFromFile = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Tags based on headings')
+			.setDesc('Create an Anki tag based on the text of the ## block heading.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.tagFromHeading)
+					.onChange(async (value) => {
+						this.plugin.settings.tagFromHeading = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// ── Defaults ───────────────────────────────────────────────────────────
 
 		containerEl.createEl('h3', { text: 'Defaults' });
@@ -303,6 +371,30 @@ export class AnkiBiSyncSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.defaultDeck)
 					.onChange(async (value) => {
 						this.plugin.settings.defaultDeck = value.trim() || 'Obsidian';
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Append .folder and .md suffixes to decks')
+			.setDesc('If enabled, Anki decks generated from Obsidian structure will append ".folder" and ".md" to clarify their source type.')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.deckAddSuffixes)
+					.onChange(async (value) => {
+						this.plugin.settings.deckAddSuffixes = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Make folder names uppercase in decks')
+			.setDesc('If enabled, Anki deck folders will be automatically converted to UPPERCASE (e.g. TestFolder -> TESTFOLDER).')
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.deckUppercaseFolders)
+					.onChange(async (value) => {
+						this.plugin.settings.deckUppercaseFolders = value;
 						await this.plugin.saveSettings();
 					})
 			);

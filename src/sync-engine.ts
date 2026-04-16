@@ -7,7 +7,7 @@
 
 import { App, Notice, TFile } from 'obsidian';
 import { AnkiConnect, AddNoteParams, CardInfo, NoteInfo } from './anki-connect';
-import { buildAnkiNote, buildTags, compareNoteFields, getFilenameTag, resolveConflict } from './card-mapper';
+import { buildAnkiNote, buildTags, compareNoteFields, resolveConflict } from './card-mapper';
 import { updateFrontmatter } from './frontmatter-utils';
 import { ParsedCard, ParsedFile, buildCardMetadataBlock, parseMarkdownFile } from './parser';
 import { AnkiBiSyncSettings } from './settings';
@@ -124,11 +124,25 @@ export class SyncEngine {
 	}
 
 	private getDeckNameForFile(file: TFile): string {
+		const settings = this.settings;
+		let fileNameWithExt = file.basename;
+		if (settings.deckAddSuffixes) {
+			fileNameWithExt += '.md';
+		}
+		
 		const parentPath = file.parent?.path;
 		if (parentPath && parentPath !== '/' && parentPath !== '') {
-			return parentPath.split('/').join('::');
+			const folderParts = parentPath.split('/').map(part => {
+				let p = part;
+				if (settings.deckUppercaseFolders) p = p.toUpperCase();
+				if (settings.deckAddSuffixes) p += '.folder';
+				return p;
+			});
+			return folderParts.join('::') + '::' + fileNameWithExt;
 		}
-		return this.settings.defaultDeck;
+		
+		// Files at vault root
+		return this.settings.defaultDeck + '::' + fileNameWithExt;
 	}
 
 	// ── Internal: Vault Sync ───────────────────────────────────────────────────
@@ -208,7 +222,7 @@ export class SyncEngine {
 			return result;
 		}
 
-		const filename = file.basename; // without .md
+		const filename = file.path.replace(/\.md$/, ''); // include path to ensure CardIDs are unique globally
 		let parsed: ParsedFile;
 		try {
 			parsed = parseMarkdownFile(content, filename, this.getDeckNameForFile(file));
@@ -281,7 +295,6 @@ export class SyncEngine {
 		result: SyncResult
 	): Promise<void> {
 		const vaultName = this.app.vault.getName();
-		const filenameTag = getFilenameTag(file.path);
 
 		// Batch: query all CardIDs at once using multi action
 		const CHUNK_SIZE = 50;
@@ -318,7 +331,7 @@ export class SyncEngine {
 				if (noteIds.length === 0) {
 					// New card
 					toCreate.push(
-						buildAnkiNote(card, parsed, vaultName, file.path, this.settings.noteModelName)
+						buildAnkiNote(card, parsed, vaultName, file.path, this.settings.noteModelName, this.settings)
 					);
 				} else {
 					// Existing card — need to check if fields changed
@@ -372,7 +385,7 @@ export class SyncEngine {
 					const card = noteIdToCard.get(noteInfo.noteId);
 					if (!card) continue;
 
-					const diff = compareNoteFields(noteInfo, card, parsed, filenameTag);
+					const diff = compareNoteFields(noteInfo, card, parsed, file.path, this.settings);
 					if (diff.frontChanged || diff.backChanged || diff.tagsChanged) {
 						try {
 							await this.anki.updateNote({
@@ -406,12 +419,10 @@ export class SyncEngine {
 		processedCardIDs: string[],
 		result: SyncResult
 	): Promise<void> {
-		const filenameTag = getFilenameTag(file.path);
-
 		let ankiNoteIds: number[];
 		try {
 			ankiNoteIds = await this.anki.findNotes(
-				`tag:${filenameTag} note:${this.settings.noteModelName}`
+				`"ObsidianPath:${file.path}" note:${this.settings.noteModelName}`
 			);
 		} catch (err) {
 			result.errors.push(
@@ -473,13 +484,10 @@ export class SyncEngine {
 	// ── Pull Cards for a Single File ──────────────────────────────────────────
 
 	private async pullCardsForFile(file: TFile, parsed: ParsedFile): Promise<void> {
-		const filenameTag = getFilenameTag(file.path);
-
-		// Find all Anki notes for this file
 		let ankiNoteIds: number[];
 		try {
 			ankiNoteIds = await this.anki.findNotes(
-				`tag:${filenameTag} note:${this.settings.noteModelName}`
+				`"ObsidianPath:${file.path}" note:${this.settings.noteModelName}`
 			);
 		} catch {
 			return; // Ignore pull errors per file
@@ -575,9 +583,7 @@ export class SyncEngine {
 						content,
 						localCard,
 						frontChanged ? ankiFront : null,
-						backChanged ? ankiBack : null,
-						cardInfo ? formatDate(nextReviewDate ?? new Date()) : null,
-						cardInfo ? (cardInfo.reps) : null
+						backChanged ? ankiBack : null
 					);
 					if (result !== null) {
 						content = result;
@@ -591,9 +597,7 @@ export class SyncEngine {
 						content,
 						localCard,
 						null, // no heading change
-						null, // no body change
-						formatDate(nextReviewDate),
-						cardInfo.reps
+						null  // no body change
 					);
 					if (result !== null) {
 						content = result;
@@ -743,9 +747,7 @@ function updateContentSection(
 	content: string,
 	card: ParsedCard,
 	newHeading: string | null,
-	newBody: string | null,
-	nextReview: string | null,
-	reviewedCount: number | null
+	newBody: string | null
 ): string | null {
 	const lines = content.split('\n');
 
@@ -790,12 +792,6 @@ function updateContentSection(
 	const finalBody = newBody !== null ? newBody : bodyWithoutMeta;
 	if (finalBody) {
 		newLines.push(finalBody);
-	}
-
-	// Append metadata
-	const metaBlock = buildCardMetadataBlock(nextReview, reviewedCount);
-	if (metaBlock) {
-		newLines.push(metaBlock.trimStart());
 	}
 
 	// Reconstruct the full content

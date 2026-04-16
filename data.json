@@ -14,6 +14,12 @@
   "biSyncEnabled": true,
   "deleteOrSuspend": "suspend",
   "defaultDeck": "Obsidian",
+  "deckAddSuffixes": false,
+  "deckUppercaseFolders": true,
   "noteModelName": "ObsidianBiSync",
-  "syncTagsFromAnki": false
+  "syncTagsFromAnki": false,
+  "tagFromHeading": false,
+  "tagFromFile": false,
+  "tagFromFolder": true,
+  "tagFromMeta": true
 }

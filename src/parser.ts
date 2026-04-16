@@ -22,10 +22,6 @@ export interface ParsedCard {
 	body: string;
 	/** Body text as it appears in the file (including metadata lines) */
 	rawBody: string;
-	/** Parsed next_review date string (null if not present) */
-	nextReview: string | null;
-	/** Parsed reviewed count (null if not present) */
-	reviewedCount: number | null;
 	/** 1-indexed line number where the ## heading line is */
 	headingLine: number;
 	/** 1-indexed line number where the body content starts (line after heading) */
@@ -175,30 +171,17 @@ const NEXT_REVIEW_RE = /^`next_review:\s*(.+?)`\s*$/m;
 const REVIEWED_RE = /^`reviewed:\s*(\d+)\s*times?\s*`\s*$/m;
 
 function extractCardMetadata(rawBody: string): {
-	nextReview: string | null;
-	reviewedCount: number | null;
 	cleanBody: string;
 } {
 	let cleanBody = rawBody;
-	let nextReview: string | null = null;
-	let reviewedCount: number | null = null;
 
-	const nrMatch = NEXT_REVIEW_RE.exec(rawBody);
-	if (nrMatch) {
-		nextReview = nrMatch[1]?.trim() ?? null;
-		cleanBody = cleanBody.replace(NEXT_REVIEW_RE, '');
-	}
-
-	const rvMatch = REVIEWED_RE.exec(rawBody);
-	if (rvMatch) {
-		reviewedCount = parseInt(rvMatch[1] ?? '0', 10);
-		cleanBody = cleanBody.replace(REVIEWED_RE, '');
-	}
+	cleanBody = cleanBody.replace(NEXT_REVIEW_RE, '');
+	cleanBody = cleanBody.replace(REVIEWED_RE, '');
 
 	// Trim trailing whitespace / blank lines from clean body
 	cleanBody = cleanBody.replace(/\n+$/, '').trimEnd();
 
-	return { nextReview, reviewedCount, cleanBody };
+	return { cleanBody };
 }
 
 // ─── Section Splitting ────────────────────────────────────────────────────────
@@ -308,7 +291,7 @@ export function parseMarkdownFile(
 		}
 
 		// Extract and strip per-card metadata
-		const { nextReview, reviewedCount, cleanBody } = extractCardMetadata(rawBody);
+		const { cleanBody } = extractCardMetadata(rawBody);
 
 		// Generate unique slug
 		const baseSlug = slugify(headingText);
@@ -326,8 +309,6 @@ export function parseMarkdownFile(
 			cardID,
 			body: cleanBody.trim(),
 			rawBody,
-			nextReview,
-			reviewedCount,
 			headingLine: globalHeadingLine,
 			bodyStartLine: bodyStartLineGlobal,
 			endLine: endLineGlobal,
@@ -346,18 +327,7 @@ export function parseMarkdownFile(
 
 // ─── Re-serialization Helpers ─────────────────────────────────────────────────
 
-/**
- * Build the per-card metadata block to append after card body.
- */
-export function buildCardMetadataBlock(
-	nextReview: string | null,
-	reviewedCount: number | null
-): string {
-	const lines: string[] = [];
-	if (nextReview) lines.push(`\`next_review: ${nextReview}\``);
-	if (reviewedCount !== null) lines.push(`\`reviewed: ${reviewedCount} times\``);
-	return lines.length > 0 ? '\n' + lines.join('\n') : '';
-}
+// (Removed buildCardMetadataBlock since we are discarding inline metadata generation)
 
 /**
  * Serialize frontmatter back to YAML string.
